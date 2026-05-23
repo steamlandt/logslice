@@ -75,3 +75,22 @@ func TestMatchLevelAndKeyword(t *testing.T) {
 		t.Error("should match: error level and keyword present")
 	}
 }
+
+func TestMatchKeywordCaseInsensitive(t *testing.T) {
+	f := filter.New("", "timeout")
+	tests := []struct {
+		line string
+		want bool
+	}{
+		{"2024-01-01 ERROR connection TIMEOUT exceeded", true},
+		{"2024-01-01 ERROR connection Timeout exceeded", true},
+		{"2024-01-01 ERROR connection timeout exceeded", true},
+		{"2024-01-01 ERROR connection error", false},
+	}
+	for _, tc := range tests {
+		got := f.Match(tc.line)
+		if got != tc.want {
+			t.Errorf("Match(%q) = %v, want %v", tc.line, got, tc.want)
+		}
+	}
+}
