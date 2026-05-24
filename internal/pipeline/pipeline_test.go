@@ -96,3 +96,40 @@ func TestPipelineInvalidPattern(t *testing.T) {
 		t.Error("expected error for invalid regex pattern, got nil")
 	}
 }
+
+// TestPipelineTimeRangeFiltering verifies that lines outside the specified
+// time range are excluded from the output.
+func TestPipelineTimeRangeFiltering(t *testing.T) {
+	lines := []string{
+		`2024-01-10T09:59:00Z INFO  before range`,
+		`2024-01-10T10:00:00Z INFO  start of range`,
+		`2024-01-10T10:01:00Z INFO  inside range`,
+		`2024-01-10T10:02:00Z INFO  end of range`,
+		`2024-01-10T10:03:00Z INFO  after range`,
+	}
+	input := writeTempLog(t, lines)
+	out := filepath.Join(t.TempDir(), "out.log")
+
+	cfg := &config.Config{
+		Input:  input,
+		Output: out,
+		From:   mustTime(t, "2024-01-10T10:00:00Z"),
+		To:     mustTime(t, "2024-01-10T10:02:00Z"),
+	}
+
+	pl, err := pipeline.New(cfg)
+	if err != nil {
+		t.Fatalf("New: %v", err)
+	}
+
+	snap, err := pl.Run()
+	if err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+
+	// Expect only the 3 lines within [10:00, 10:02] to be written.
+	const wantWritten = 3
+	if snap.Written != wantWritten {
+		t.Errorf("Written = %d, want %d", snap.Written, wantWritten)
+	}
+}
